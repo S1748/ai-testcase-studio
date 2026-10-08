@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ---------------------------------------------------------------
+  # 1. 后端单元测试
+  #
+  # backend/tests 下全部是 mock 模式用例：不调用任何外部 LLM /
+  # Embedding 服务，不碰数据库，几百毫秒跑完，适合做最快的回归关卡。
+  # ---------------------------------------------------------------
+  backend-test:
+    name: 后端单元测试
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: 安装后端依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 运行单元测试
+        run: python -m unittest discover -s tests -v
+
+  # ---------------------------------------------------------------
+  # 2. 接口自动化测试
+  #
+  # autotest/conftest.py 会自己拉起一个后端实例：
+  #   - 独立的临时 SQLite 与 Chroma 目录，会话结束自动清理
+  #   - 强制 LLM_MOCK_MODE=true，不依赖任何外部模型服务
+  # 所以这一关是真正能跑起来、且结果确定的接口回归。
+  #
+  # 注意：只跑 autotest/api。autotest/ui 是 Playwright 用例，
+  # 需要先安装浏览器内核并起前端服务，成本高且容易抖动，暂不纳入 CI。
+  # ---------------------------------------------------------------
+  api-autotest:
+    name: 接口自动化测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: autotest/requirements.txt
+
+      - name: 安装自动化测试依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r autotest/requirements.txt
+
+      - name: 给后端建独立运行环境
+        working-directory: backend
+        run: |
+          python -m venv venv
+          venv/bin/python -m pip install --upgrade pip
+          venv/bin/pip install -r requirements.txt
+
+      - name: 执行接口自动化用例
+        run: pytest autotest/api -v
+
+      - name: 失败时保留日志
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: autotest-api-logs
+          path: |
+            autotest/reports/
+            autotest/test-results/
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------
+  # 3. 前端构建
+  # ---------------------------------------------------------------
+  web-build:
+    name: 前端构建
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 构建产物
+        run: npm run build

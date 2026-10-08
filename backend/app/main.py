@@ -88,4 +88,6 @@ app.include_router(settings_api.router, prefix="/api")
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    # mock_mode 用于让调用方（本地自动化、CI）确认当前实例没有连真实模型服务，
+    # 避免测试在无 Key 的情况下误打外部 API 或反过来误以为自己跑的是真模型。
+    return {"status": "ok", "mock_mode": settings.use_mock_llm}

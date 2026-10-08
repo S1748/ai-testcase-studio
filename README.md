@@ -217,6 +217,7 @@ ai-testcase-studio/
 ├── docs/                     # 开发问题与维护文档
 ├── democase/                 # 示例需求与清单
 ├── autotest/                 # 接口自动化、UI 自动化、报告与运行脚本
+├── .github/workflows/ci.yml  # GitHub Actions 流水线
 ├── restart.sh                # 一键重启前后端
 ├── setup.bat / start.bat     # Windows 安装与启动脚本
 └── .env.example
@@ -235,6 +236,37 @@ cd autotest
 ```
 
 Windows 使用 `run_tests.bat`，参数与上面一致。详细说明见 [`autotest/README.md`](autotest/README.md)。
+
+## 持续集成
+
+`.github/workflows/ci.yml` 在 push 到 `main` 或提 PR 时自动触发，三个 job 相互独立、并行执行：
+
+| Job | 做什么 | 依赖外部服务 |
+| --- | --- | --- |
+| `backend-test` | 跑 `backend/tests` 下的后端单元测试 | 无（全 mock） |
+| `api-autotest` | 跑 `autotest/api` 接口回归，自动拉起 mock 后端实例 | 无（临时 SQLite / Chroma） |
+| `web-build` | `npm ci` + `npm run build` 校验前端可构建 | 无 |
+
+**为什么 CI 里不跑 `autotest/ui`？**
+UI 用例基于 Playwright，需要先下载浏览器内核，还要起前端 dev server，跑一轮成本高且容易受环境影响抖动。这部分保持本地执行，需要时再单独接入。
+
+**为什么不需要在 CI 里配置任何 API Key？**
+后端在没有配置 `LLM_API_KEY` 或显式设置 `LLM_MOCK_MODE=true` 时会自动走 Mock 链路，`autotest/conftest.py` 也会强制注入 mock 环境变量。因此整条流水线完全离线可跑，不会消耗任何模型额度。`GET /api/health` 会返回 `mock_mode` 字段，便于确认当前实例确实运行在 Mock 模式。
+
+本地复现 CI：
+
+```bash
+# 后端单元测试
+cd backend && python -m unittest discover -s tests -v
+
+# 接口自动化（会自己拉起后端）
+pip install -r autotest/requirements.txt
+cd backend && python -m venv venv && venv/bin/pip install -r requirements.txt && cd ..
+pytest autotest/api -v
+
+# 前端构建
+cd web && npm ci && npm run build
+```
 
 ## 相关文档
 

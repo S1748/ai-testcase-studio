@@ -47,11 +47,13 @@ def test_reject_drafts_with_reason(client, project, completed_task):
 
 
 def test_invalid_review_action_rejected(client, project, completed_task):
+    """action 字段是 Literal 枚举，非法值由请求校验拦下，FastAPI 返回 422。"""
     resp = client.post(
         f"/projects/{project['id']}/generations/{completed_task['id']}/review",
         json={"draft_ids": _draft_ids(completed_task, 1), "action": "destroy"},
     )
-    assert resp.status_code == 400
+    assert resp.status_code == 422
+    assert resp.json()["detail"]
 
 
 def test_edit_draft_marks_was_edited(client, project, completed_task):
