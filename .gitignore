@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.env
+*.db
+
+# Node
+node_modules/
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+
+# Uploads
+uploads/
+
+# Playwright CLI artifacts
+.playwright-cli/
+
+# 本地数据（SQLite 含 API Key、Chroma 含知识库原文向量）
+backend/data/
+
+# 测试运行输出
+output/
+
+# Autotest
+autotest/.browsers/
+autotest/ui/artifacts/
+autotest/reports/
+autotest/test-results/
+
+# ===== AI 工具目录（含知识库导出、本地记忆、临时文件，绝不提交）=====
+.workbuddy/
+.claude/
+
+# ===== 面试与个人资料（不上传公开仓库）=====
+面试作战手册*.md
+docs/面试八股*.md
+docs/Interview*.md

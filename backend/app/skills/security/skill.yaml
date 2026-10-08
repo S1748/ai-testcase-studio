@@ -1,0 +1,21 @@
+name: security
+version: "1.0.0"
+title: 安全 / 权限
+description: 越权访问、注入、会话劫持等专项用例
+category: specialist
+stage: generation
+tags: [security, specialist]
+
+ui:
+  selectable: true
+  group: 专项测试
+  icon: shield
+
+inputs:
+  feature_item:
+    type: object
+    required: true
+
+outputs:
+  cases:
+    type: array
